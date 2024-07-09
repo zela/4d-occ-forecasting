@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 # JIT
 from torch.utils.cpp_extension import load

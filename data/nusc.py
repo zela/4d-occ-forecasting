@@ -4,7 +4,6 @@
 import numpy as np
 from pyquaternion import Quaternion
 import torch
-import time
 from torch.utils.data import Dataset
 from nuscenes.utils.data_classes import LidarPointCloud
 from nuscenes.utils.geometry_utils import transform_matrix
@@ -138,9 +137,9 @@ class nuScenesDataset(Dataset):
         ref_index = self.valid_index[idx]
 
         ref_sample_token = self.sample_tokens[ref_index]
-        ref_sample_rec = self.nusc.get("sample", ref_sample_token)
+        # ref_sample_rec = self.nusc.get("sample", ref_sample_token)
         ref_scene_token = self.scene_tokens[ref_index]
-        ref_timestamp = self.timestamps[ref_index]
+        # ref_timestamp = self.timestamps[ref_index]
         ref_sd_token = self.sample_data_tokens[ref_index]
         flip_flag = self.flip_flags[ref_index]
 
@@ -181,7 +180,8 @@ class nuScenesDataset(Dataset):
 
             else:  # filler
                 print("came here to fill in nans in input point cloud")
-                print(self.scene_tokens[index], ref_scene_index)
+                # print(self.scene_tokens[index], ref_scene_index)
+                print(self.scene_tokens[index])
                 origin_tf = np.array([0.0, 0.0, 0.0], dtype=np.float32)
                 points_tf = np.full((0, 3), float("nan"), dtype=np.float32)
 
@@ -268,4 +268,3 @@ class nuScenesDataset(Dataset):
                 output_tindex_tensor,
                 output_labels_tensor
             )
-

@@ -1,16 +1,10 @@
-import os
 import json
-import copy
 import argparse
 from datetime import datetime
 import numpy as np
-
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
-import struct
-from chamferdist import ChamferDistance
-from data.common import CollateFn, nuScenesVolume2Kitti
 from model import OccupancyForecastingNetwork
 from utils.evaluation import compute_chamfer_distance, compute_chamfer_distance_inner, compute_ray_errors, clamp
 
@@ -26,7 +20,9 @@ def get_grid_mask(points, pc_range):
     # print("shape of mask being returned", mask.shape)
     return mask
 
-def get_rendered_pcds(origin, points, tindex, gt_dist, pred_dist, pc_range, eval_within_grid=False, eval_outside_grid=False):
+
+def get_rendered_pcds(origin, points, tindex, gt_dist, pred_dist, pc_range, eval_within_grid=False,
+                      eval_outside_grid=False):
     pcds = []
     for t in range(len(origin)):
         mask = np.logical_and(tindex == t, gt_dist > 0.0)
@@ -45,7 +41,9 @@ def get_rendered_pcds(origin, points, tindex, gt_dist, pred_dist, pc_range, eval
         pcds.append(torch.from_numpy(pred_pts))
     return pcds
 
-def get_clamped_output(origin, points, tindex, pc_range, gt_dist, eval_within_grid=False, eval_outside_grid=False, get_indices=False):
+
+def get_clamped_output(origin, points, tindex, pc_range, gt_dist, eval_within_grid=False, eval_outside_grid=False,
+                       get_indices=False):
     pcds = []
     if get_indices:
         indices = []
@@ -72,8 +70,9 @@ def get_clamped_output(origin, points, tindex, pc_range, gt_dist, eval_within_gr
     else:
         return pcds
 
+
 def make_data_loader(cfg, args):
-    dataset_kwargs={
+    dataset_kwargs = {
         "pc_range": cfg["pc_range"],
         "voxel_size": cfg["voxel_size"],
         "n_input": cfg["n_input"],
@@ -81,7 +80,7 @@ def make_data_loader(cfg, args):
         "n_output": cfg["n_output"],
         "output_step": cfg["output_step"],
     }
-    data_loader_kwargs={
+    data_loader_kwargs = {
         "pin_memory": False,  # NOTE
         "shuffle": True,
         "batch_size": args.batch_size,
@@ -107,7 +106,7 @@ def make_data_loader(cfg, args):
         from data.kitti import KittiDataset
         from data.common import CollateFn
 
-        data_loader=DataLoader(
+        data_loader = DataLoader(
             KittiDataset(cfg["kitti_root"], cfg["kitti_cfg"], args.test_split, dataset_kwargs),
             collate_fn=CollateFn,
             **data_loader_kwargs,
@@ -117,10 +116,10 @@ def make_data_loader(cfg, args):
         from data.common import CollateFn
 
         data_loader = DataLoader(
-                Argoverse2Dataset(cfg["argo_root"], args.test_split, dataset_kwargs),
-                collate_fn=CollateFn,
-                **data_loader_kwargs,
-            )
+            Argoverse2Dataset(cfg["argo_root"], args.test_split, dataset_kwargs),
+            collate_fn=CollateFn,
+            **data_loader_kwargs,
+        )
     else:
         raise NotImplementedError(f"Dataset {cfg['dataset']} is not supported.")
 
@@ -139,9 +138,9 @@ def test(args):
         )
 
     #
-    model_dir=args.model_dir
+    model_dir = args.model_dir
     with open(f"{model_dir}/config.json", "r") as f:
-        cfg=json.load(f)
+        cfg = json.load(f)
         if 'model_name' not in cfg:
             cfg['model_name'] = 'occ'
 
@@ -153,33 +152,33 @@ def test(args):
         print("=" * 80)
 
     # dataset
-    data_loader=make_data_loader(cfg, args)
+    data_loader = make_data_loader(cfg, args)
 
     # instantiate a model and a renderer
-    _n_input, _n_output=cfg["n_input"], cfg["n_output"]
-    _pc_range, _voxel_size=cfg["pc_range"], cfg["voxel_size"]
-    _model_type, _loss_type=cfg["model_type"], cfg["loss_type"]
+    _n_input, _n_output = cfg["n_input"], cfg["n_output"]
+    _pc_range, _voxel_size = cfg["pc_range"], cfg["voxel_size"]
+    _model_type, _loss_type = cfg["model_type"], cfg["loss_type"]
 
     assert cfg["model_name"] == 'occ'
     model = OccupancyForecastingNetwork(
-            _model_type, _loss_type, _n_input, _n_output, _pc_range, _voxel_size
-        )
+        _model_type, _loss_type, _n_input, _n_output, _pc_range, _voxel_size
+    )
 
     # move onto gpu
-    model=model.to(device)
+    model = model.to(device)
 
     # resume
-    ckpt_path=f"{args.model_dir}/ckpts/model_epoch_{args.test_epoch}.pth"
-    checkpoint=torch.load(ckpt_path, map_location=device)
+    ckpt_path = f"{args.model_dir}/ckpts/model_epoch_{args.test_epoch}.pth"
+    checkpoint = torch.load(ckpt_path, map_location=device)
     # NOTE: ignore renderer's parameters
     model.load_state_dict(checkpoint["model_state_dict"], strict=False)
 
     # data parallel
-    model=nn.DataParallel(model)
+    model = nn.DataParallel(model)
     model.eval()
 
     #
-    dt=datetime.now()
+    dt = datetime.now()
 
     metrics = {
         "count": 0.0,
@@ -189,20 +188,20 @@ def test(args):
         "absrel_error": 0.0
     }
     for i, batch in enumerate(data_loader):
-        filenames=batch[0]
-        input_points, input_tindex=batch[1:3]
-        output_origin, output_points, output_tindex=batch[3:6]  # removed output_labels as
-                                                                # the last returned argument
+        filenames = batch[0]
+        input_points, input_tindex = batch[1:3]
+        output_origin, output_points, output_tindex = batch[3:6]  # removed output_labels as
+        # the last returned argument
         assert cfg["dataset"] == "nuscenes"
         output_labels = batch[6]
 
-        bs=len(input_points)
+        bs = len(input_points)
         if bs % device_count != 0:
             print(f"Dropping the last batch of size {bs}")
             continue
 
         with torch.set_grad_enabled(False):
-            ret_dict=model(
+            ret_dict = model(
                 input_points,
                 input_tindex,
                 output_origin,
@@ -240,25 +239,25 @@ def test(args):
                 gt_dist = gt_dist_static[j]
 
             pred_pcds = get_rendered_pcds(
-                    output_origin[j].cpu().numpy(),
-                    output_points.cpu().numpy(),
-                    output_tindex.cpu().numpy(),
-                    gt_dist.cpu().numpy(),
-                    pred_dist.cpu().numpy(),
-                    _pc_range,
-                    args.eval_within_grid,
-                    args.eval_outside_grid
-                )
+                output_origin[j].cpu().numpy(),
+                output_points.cpu().numpy(),
+                output_tindex.cpu().numpy(),
+                gt_dist.cpu().numpy(),
+                pred_dist.cpu().numpy(),
+                _pc_range,
+                args.eval_within_grid,
+                args.eval_outside_grid
+            )
 
             gt_pcds = get_clamped_output(
-                    output_origin[j].cpu().numpy(),
-                    output_points.cpu().numpy(),
-                    output_tindex.cpu().numpy(),
-                    _pc_range,
-                    gt_dist.cpu().numpy(),
-                    args.eval_within_grid,
-                    args.eval_outside_grid
-                )
+                output_origin[j].cpu().numpy(),
+                output_points.cpu().numpy(),
+                output_tindex.cpu().numpy(),
+                _pc_range,
+                gt_dist.cpu().numpy(),
+                args.eval_within_grid,
+                args.eval_outside_grid
+            )
 
             # load predictions
             for k in range(len(gt_pcds)):
@@ -274,11 +273,15 @@ def test(args):
                 metrics["l1_error"] += l1_error
                 metrics["absrel_error"] += absrel_error
 
-        print("Batch {"+str(i)+"/"+str(len(data_loader))+"}:", "Chamfer Distance:", metrics["chamfer_distance"] / metrics["count"])
-        print("Batch {"+str(i)+"/"+str(len(data_loader))+"}:", "Chamfer Distance Inner:", metrics["chamfer_distance_inner"] / metrics["count"])
-        print("Batch {"+str(i)+"/"+str(len(data_loader))+"}:", "L1 Error:", metrics["l1_error"] / metrics["count"])
-        print("Batch {"+str(i)+"/"+str(len(data_loader))+"}:", "AbsRel Error:", metrics["absrel_error"] / metrics["count"])
-        print("Batch {"+str(i)+"/"+str(len(data_loader))+"}:", "Count:", metrics["count"])
+        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Chamfer Distance:",
+              metrics["chamfer_distance"] / metrics["count"])
+        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Chamfer Distance Inner:",
+              metrics["chamfer_distance_inner"] / metrics["count"])
+        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "L1 Error:",
+              metrics["l1_error"] / metrics["count"])
+        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "AbsRel Error:",
+              metrics["absrel_error"] / metrics["count"])
+        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Count:", metrics["count"])
 
     print("Final Chamfer Distance:", metrics["chamfer_distance"] / metrics["count"])
     print("Final Chamfer Distance Inner:", metrics["chamfer_distance_inner"] / metrics["count"])
@@ -286,9 +289,8 @@ def test(args):
     print("Final AbsRel Error:", metrics["absrel_error"] / metrics["count"])
 
 
-
 if __name__ == "__main__":
-    parser=argparse.ArgumentParser()
+    parser = argparse.ArgumentParser()
 
     parser.add_argument("--model-dir", type=str, required=True)
     parser.add_argument("--test-split", type=str, required=True)
@@ -302,7 +304,7 @@ if __name__ == "__main__":
     parser.add_argument("--fg-bg", default='fg', required=True, type=str)
     parser.add_argument("--write-dense-pointcloud", action="store_true")
 
-    args=parser.parse_args()
+    args = parser.parse_args()
     torch.random.manual_seed(0)
     np.random.seed(0)
     test(args)

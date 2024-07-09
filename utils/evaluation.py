@@ -1,16 +1,6 @@
-from data.common import CollateFn, KittiPoints2nuScenes
 from chamferdist import ChamferDistance
-from torch.utils.data import DataLoader
-from scipy.interpolate import interp2d
 import torch
-import struct
 import numpy as np
-import copy
-import json
-from plyfile import PlyData
-import argparse
-from tqdm import tqdm
-import cv2
 
 PC_RANGE = [-70.0, -70.0, -4.5, 70.0, 70.0, 4.5]
 DEFAULT_HZ = {"kittiraw": 10, "nuscenes": 2}
@@ -25,8 +15,10 @@ def get_nusc_ego_mask(points):
     )
     return ego_mask
 
+
 def point_at_infinity():
-    return torch.from_numpy(np.array([np.inf]*3))
+    return torch.from_numpy(np.array([np.inf] * 3))
+
 
 def clamp(pcd_, org_, return_invalid_mask=False):
     if torch.is_tensor(pcd_):
@@ -51,15 +43,15 @@ def clamp(pcd_, org_, return_invalid_mask=False):
         origins[np.logical_not(inner_mask)] = origin_outer
 
     invalid1 = np.logical_and(
-            np.isinf(pcd[:, 0]),
-            np.logical_and(
-                np.isinf(pcd[:, 1]),
-                np.isinf(pcd[:, 2])))
+        np.isinf(pcd[:, 0]),
+        np.logical_and(
+            np.isinf(pcd[:, 1]),
+            np.isinf(pcd[:, 2])))
     invalid2 = np.logical_and(
-            np.isnan(pcd[:, 0]),
-            np.logical_and(
-                np.isnan(pcd[:, 1]),
-                np.isnan(pcd[:, 2])))
+        np.isnan(pcd[:, 0]),
+        np.logical_and(
+            np.isnan(pcd[:, 1]),
+            np.isnan(pcd[:, 2])))
     invalid = np.logical_or(invalid1, invalid2)
 
     if not return_invalid_mask:
@@ -69,21 +61,23 @@ def clamp(pcd_, org_, return_invalid_mask=False):
     if return_invalid_mask:
         return origins, pcd, invalid
 
+
 def inside_volume(xyz):
     x, y, z = xyz.T
     xmin, ymin, zmin, xmax, ymax, zmax = PC_RANGE
     xmin, ymin, zmin, xmax, ymax, zmax = xmin - 0.02, ymin - 0.02, zmin - 0.02, xmax + 0.02, ymax + 0.02, zmax + 0.02
     return np.logical_and(
-            xmin <= x,
+        xmin <= x,
+        np.logical_and(
+            x <= xmax,
             np.logical_and(
-                x <= xmax,
+                ymin <= y,
                 np.logical_and(
-                    ymin <= y,
+                    y <= ymax,
                     np.logical_and(
-                        y <= ymax,
-                        np.logical_and(
-                            zmin <= z,
-                            z <= zmax)))))
+                        zmin <= z,
+                        z <= zmax)))))
+
 
 def _clamp(points, origin):
     xmin, ymin, zmin, xmax, ymax, zmax = PC_RANGE
@@ -96,16 +90,16 @@ def _clamp(points, origin):
     xe, ye, ze = points.T
     # degenerate ray
     mask = np.logical_and(
-            (xe - xo) == 0,
-            np.logical_and(
-                (ye - yo) == 0,
-                (ze - zo) == 0))
+        (xe - xo) == 0,
+        np.logical_and(
+            (ye - yo) == 0,
+            (ze - zo) == 0))
     if mask.sum() > 0:
         raise RuntimeError("Or`igin and the end point should not be identical at", points[mask])
         # if xo == xe and yo == ye and zo == ze:
         # return (point_at_infinity(), point_at_infinity())
     # ray raw length
-    l = np.sqrt((xe-xo)**2 + (ye-yo)**2 + (ze-zo)**2)
+    l = np.sqrt((xe - xo) ** 2 + (ye - yo) ** 2 + (ze - zo) ** 2)
     # non-zero
     # offset along x, y, z per unit movement
     dx = (xe - xo) / l
@@ -146,7 +140,6 @@ def _clamp(points, origin):
                             points[j] = new_origin[j].copy()
                         break
 
-
     # distance to planes along the reversed ray direction
     point_to_xmin = np.where(np.isclose(dx, 0.0), MAX_VALUE, (xmin - xe) / (-dx))
     point_to_xmax = np.where(np.isclose(dx, 0.0), MAX_VALUE, (xmax - xe) / (-dx))
@@ -156,8 +149,8 @@ def _clamp(points, origin):
     point_to_zmax = np.where(np.isclose(dz, 0.0), MAX_VALUE, (zmax - ze) / (-dz))
     # sort distance
     point_to_planes = np.stack([point_to_xmin, point_to_xmax,
-        point_to_ymin, point_to_ymax,
-        point_to_zmin, point_to_zmax])
+                                point_to_ymin, point_to_ymax,
+                                point_to_zmin, point_to_zmax])
     lambda_order = np.argsort(point_to_planes, axis=0)
 
     for j, point in enumerate(points):
@@ -176,9 +169,10 @@ def _clamp(points, origin):
                             touches_volume = True
                             points[j] = intersection.copy()
                             break
-                assert(touches_volume)
+                assert (touches_volume)
 
     return (new_origin, points)
+
 
 def compute_chamfer_distance_inner(pred_pcd, gt_pcd, device, savename=""):
     mask1 = np.logical_and(PC_RANGE[0] <= pred_pcd[:, 0], pred_pcd[:, 0] <= PC_RANGE[3])
@@ -262,4 +256,3 @@ def compute_ray_errors(pred_pcd, gt_pcd, origin, device, return_interpolated_pcd
     absrel_error = eucl_dist / d_clamped
 
     return l1_error.sum() / count, absrel_error.sum() / count
-
