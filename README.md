@@ -1,5 +1,8 @@
 ![Teaser](images/teaser.gif)
 
+## Fork notes
+The path to the dataset is now stored in the `.env` file. The `.env` file is not included in the repository, but a template is provided in `.env.template`. Copy the template to `.env` and fill in the path to the dataset. The path should be the root directory of the dataset, e.g. `/path/to/nuscenes`.
+
 # Point Cloud Forecasting as a Proxy for 4D Occupancy Forecasting
 By Tarasha Khurana\*, Peiyun Hu\*, David Held, and Deva Ramanan
 
