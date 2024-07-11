@@ -1,6 +1,7 @@
 import torch
 from dotenv import load_dotenv
 import os
+from utils.device import set_device
 
 
 def test_env():
@@ -31,6 +32,5 @@ def test_mps():
 
 
 if __name__ == "__main__":
-    test_env()
-    test_mps()
+    set_device()
 
