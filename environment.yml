@@ -1,8 +1,11 @@
 name: lt3d
 channels:
   - pytorch
-  - defaults
+  - omnia
+  - nvidia
+  - anaconda
   - conda-forge
+  - defaults
 dependencies:
   - anyio=4.2.0=py38hca03da5_0
   - appnope=0.1.2=py38hca03da5_1001
@@ -138,7 +141,7 @@ dependencies:
   - python-dotenv=0.21.0=py38hca03da5_0
   - python-fastjsonschema=2.16.2=py38hca03da5_0
   - python-json-logger=2.0.7=py38hca03da5_0
-  - pytorch=2.3.1=py3.8_0
+  - pytorch=1.9.0=py3.8_cuda11.1_cudnn8.0.5_0
   - pytz=2024.1=py38hca03da5_0
   - pyyaml=6.0.1=py38h80987f9_0
   - pyzmq=25.1.2=py38h313beb8_0
@@ -164,7 +167,7 @@ dependencies:
   - tinycss2=1.2.1=py38hca03da5_0
   - tk=8.6.14=h6ba3021_0
   - tomli=2.0.1=py38hca03da5_0
-  - torchvision=0.18.1=py38_cpu
+  - torchvision=0.2.2=py_3
   - tornado=6.4.1=py38h80987f9_0
   - traitlets=5.14.3=py38hca03da5_0
   - typing-extensions=4.11.0=py38hca03da5_0
