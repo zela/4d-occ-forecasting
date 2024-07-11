@@ -276,16 +276,16 @@ def test(args):
 
                 # get the metrics
                 metrics["count"] += 1
-                metrics["chamfer_distance"] += compute_chamfer_distance(pred_pcd, gt_pcd, device)
-                metrics["chamfer_distance_inner"] += compute_chamfer_distance_inner(pred_pcd, gt_pcd, device)
+                # metrics["chamfer_distance"] += compute_chamfer_distance(pred_pcd, gt_pcd, device)
+                # metrics["chamfer_distance_inner"] += compute_chamfer_distance_inner(pred_pcd, gt_pcd, device)
                 l1_error, absrel_error = compute_ray_errors(pred_pcd, gt_pcd, torch.from_numpy(origin), device)
                 metrics["l1_error"] += l1_error
                 metrics["absrel_error"] += absrel_error
 
-        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Chamfer Distance:",
-              metrics["chamfer_distance"] / metrics["count"])
-        print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Chamfer Distance Inner:",
-              metrics["chamfer_distance_inner"] / metrics["count"])
+        # print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Chamfer Distance:",
+        #       metrics["chamfer_distance"] / metrics["count"])
+        # print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "Chamfer Distance Inner:",
+        #       metrics["chamfer_distance_inner"] / metrics["count"])
         print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "L1 Error:",
               metrics["l1_error"] / metrics["count"])
         print("Batch {" + str(i) + "/" + str(len(data_loader)) + "}:", "AbsRel Error:",
