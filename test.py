@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from model import OccupancyForecastingNetwork
+from utils.device import set_device
 from utils.evaluation import compute_chamfer_distance, compute_chamfer_distance_inner, compute_ray_errors, clamp
 
 from torch.utils.cpp_extension import load
@@ -134,12 +135,9 @@ def make_data_loader(cfg, args):
 
 
 def test(args):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    #
-    device_count = torch.cuda.device_count()
-    print("Device count", device_count)
-    if args.batch_size % device_count != 0:
+    device, device_count = set_device()
+    
+    if device_count > 0 and args.batch_size % device_count != 0:
         raise RuntimeError(
             f"Batch size ({args.batch_size}) cannot be divided by device count ({device_count})"
         )
@@ -216,7 +214,7 @@ def test(args):
             output_labels = None
 
         bs = len(input_points)
-        if bs % device_count != 0:
+        if device_count > 0 and bs % device_count != 0:
             print(f"Dropping the last batch of size {bs}")
             continue
 

@@ -1,12 +1,13 @@
 import json
 import argparse
-from datetime import datetime
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from model import OccupancyForecastingNetwork
-from utils.evaluation import compute_chamfer_distance, compute_chamfer_distance_inner, compute_ray_errors, clamp
+from utils.device import set_device
+# from utils.evaluation import compute_chamfer_distance, compute_chamfer_distance_inner, compute_ray_errors, clamp
+from utils.evaluation import compute_ray_errors
 
 
 def get_grid_mask(points, pc_range):
@@ -127,17 +128,13 @@ def make_data_loader(cfg, args):
 
 
 def test(args):
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device,  device_count = set_device()
 
-    #
-    device_count = torch.cuda.device_count()
-    print("Device count", device_count)
-    if args.batch_size % device_count != 0:
+    if device_count > 0 and args.batch_size % device_count != 0:
         raise RuntimeError(
             f"Batch size ({args.batch_size}) cannot be divided by device count ({device_count})"
         )
 
-    #
     model_dir = args.model_dir
     with open(f"{model_dir}/config.json", "r") as f:
         cfg = json.load(f)
@@ -177,9 +174,6 @@ def test(args):
     model = nn.DataParallel(model)
     model.eval()
 
-    #
-    dt = datetime.now()
-
     metrics = {
         "count": 0.0,
         "chamfer_distance": 0.0,
@@ -187,6 +181,7 @@ def test(args):
         "l1_error": 0.0,
         "absrel_error": 0.0
     }
+
     for i, batch in enumerate(data_loader):
         filenames = batch[0]
         input_points, input_tindex = batch[1:3]
@@ -196,7 +191,7 @@ def test(args):
         output_labels = batch[6]
 
         bs = len(input_points)
-        if bs % device_count != 0:
+        if device_count > 0 and bs % device_count != 0:
             print(f"Dropping the last batch of size {bs}")
             continue
 
