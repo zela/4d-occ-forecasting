@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset
 from nuscenes.utils.data_classes import LidarPointCloud
 from nuscenes.utils.geometry_utils import transform_matrix
-from nuscenes.utils.splits import train, val, test
+from nuscenes.utils.splits import train, val, test, mini_train, mini_val
 
 
 class MyLidarPointCloud(LidarPointCloud):
@@ -44,10 +44,15 @@ class nuScenesDataset(Dataset):
         self.n_output = kwargs["n_output"]
 
         scenes = self.nusc.scene
+
         if self.nusc_split == "train":
             split_scenes = train
         elif self.nusc_split == "val":
             split_scenes = val
+        elif self.nusc_split == "mini_train":
+            split_scenes = mini_train
+        elif self.nusc_split == "mini_val":
+            split_scenes = mini_val
         else:
             split_scenes = test
 
