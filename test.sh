@@ -7,5 +7,5 @@ python test.py --model-dir models/kitti/1s_forecasting \
     --test-epoch 14 \
     --test-split $SPLIT \
     --batch-size $BATCH_SIZE \
-    --num-workers $NUM_WORKERS \
-    --compute-chamfer-dist
+    --num-workers $NUM_WORKERS
+#    --compute-chamfer-dist

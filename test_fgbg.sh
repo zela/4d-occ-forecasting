@@ -8,6 +8,6 @@ python test_fgbg.py --model-dir models/nusc/1s_forecasting \
     --test-split $SPLIT \
     --batch-size $BATCH_SIZE \
     --num-workers $NUM_WORKERS \
-    --compute-chamfer-dist \
     --fg-bg "fg"
+#    --compute-chamfer-dist \
 
