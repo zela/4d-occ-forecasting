@@ -136,7 +136,7 @@ def make_data_loader(cfg, args):
 
 def test(args):
     device, device_count = set_device()
-    
+
     if device_count > 0 and args.batch_size % device_count != 0:
         raise RuntimeError(
             f"Batch size ({args.batch_size}) cannot be divided by device count ({device_count})"
