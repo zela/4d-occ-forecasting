@@ -2,6 +2,7 @@ import torch
 from dotenv import load_dotenv
 import os
 
+
 def test_env():
     """
     Test if the environment variables from .env are loaded.
