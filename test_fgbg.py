@@ -89,20 +89,34 @@ def make_data_loader(cfg, args):
     }
 
     if cfg["dataset"].lower() == "nuscenes":
-        from data.nusc import nuScenesDataset
         from nuscenes.nuscenes import NuScenes
+        from data.nusc import nuScenesDataset
         from data.common import CollateFn
+        from dotenv import load_dotenv
+        import os
 
-        if args.test_split == "test":
-            cfg["nusc_version"] = "v1.0-test"
-        nusc = NuScenes(cfg["nusc_version"], cfg["nusc_root"])
-
-        Dataset = nuScenesDataset
+        load_dotenv()
+        # fixme uses exclusively mini_val, extend to other splits
+        path = os.environ.get("NUSCENES_MINI")
+        nusc = NuScenes(version='v1.0-mini', dataroot=path, verbose=True)
         data_loader = DataLoader(
-            Dataset(nusc, args.test_split, dataset_kwargs),
+            nuScenesDataset(nusc, "mini_val", dataset_kwargs),
             collate_fn=CollateFn,
             **data_loader_kwargs,
         )
+
+        # Original code
+        # if args.test_split == "test":
+        #     cfg["nusc_version"] = "v1.0-test"
+        # nusc = NuScenes(cfg["nusc_version"], cfg["nusc_root"])
+        #
+        # Dataset = nuScenesDataset
+        # data_loader0 = DataLoader(
+        #     Dataset(nusc, args.test_split, dataset_kwargs),
+        #     collate_fn=CollateFn,
+        #     **data_loader_kwargs,
+        # )
+
     elif cfg["dataset"].lower() == "kitti":
         from data.kitti import KittiDataset
         from data.common import CollateFn
