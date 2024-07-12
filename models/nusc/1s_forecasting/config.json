@@ -3,8 +3,8 @@
     "kitti_root": "/data3/tkhurana/datasets/semantic-kitti/dataset/",
     "argo_root": "/data3/shared/datasets/ArgoVerse2/LiDAR/",
     "kitti_cfg": "configs/semantic-kitti.yaml",
-    "nusc_root": "/data3/tkhurana/datasets/nuScenes",
-    "nusc_version": "v1.0-trainval",
+    "nusc_root": "data3/sets/nuscenes",
+    "nusc_version": "v1.0-mini",
     "pc_range": [
         -70.0,
         -70.0,
@@ -22,12 +22,11 @@
     "model_type": "dynamic",
     "model_name": "occ",
     "loss_type": "l1",
-    "chamfer_epoch": -1,
     "optimizer": "Adam",
     "lr_start": 0.0005,
     "lr_epoch": 5,
     "lr_decay": 0.1,
-    "num_epoch": 15,
-    "batch_size": 8,
+    "num_epoch": 1,
+    "batch_size": 1,
     "num_workers": 8
 }

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from data.common import CollateFn
-#from model import OccupancyForecastingNetwork
+from gnn import PointNetPP
 
 def make_data_loaders(args):
     dataset_kwargs = {
@@ -29,22 +29,7 @@ def make_data_loaders(args):
         "num_workers": args.num_workers,
     }
 
-    if args.dataset.lower() == "kitti":
-        from data.kitti import KittiDataset
-
-        data_loaders = {
-            "train": DataLoader(
-                KittiDataset(args.kitti_root, args.kitti_cfg, "trainval", dataset_kwargs),
-                collate_fn=CollateFn,
-                **data_loader_kwargs,
-            ),
-            "val": DataLoader(
-                KittiDataset(args.kitti_root, args.kitti_cfg, "test", dataset_kwargs),
-                collate_fn=CollateFn,
-                **data_loader_kwargs,
-            ),
-        }
-    elif args.dataset.lower() == "nuscenes":
+    if args.dataset.lower() == "nuscenes":
         from data.nusc import nuScenesDataset
         from nuscenes.nuscenes import NuScenes
 
@@ -61,17 +46,6 @@ def make_data_loaders(args):
                 collate_fn=CollateFn,
                 **data_loader_kwargs,
             ),
-        }
-
-    elif args.dataset.lower() == "argoverse2":
-        from data.av2 import Argoverse2Dataset
-
-        data_loaders = {
-            "train": DataLoader(
-                Argoverse2Dataset(args.argo_root, "train", dataset_kwargs, subsample=args.subsample),
-                collate_fn=CollateFn,
-                **data_loader_kwargs,
-            )
         }
 
     else:
@@ -113,7 +87,6 @@ def resume_from_ckpts(ckpt_dir, model, optimizer, scheduler):
 
 def train(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #
     device_count = torch.cuda.device_count()
     if device_count and args.batch_size % device_count != 0:
         raise RuntimeError(
@@ -123,22 +96,9 @@ def train(args):
     # dataset
     data_loaders = make_data_loaders(args)
 
-    # instantiate a model and a renderer
-    _n_input, _n_output = args.n_input, args.n_output
-    _pc_range, _voxel_size = args.pc_range, args.voxel_size
-    _model_type, _loss_type = args.model_type, args.loss_type
+    ForecastingNetwork = PointNetPP(num_coords=3) # 3 coordinates
 
-    assert args.model_name == "occ"
-    ForecastingNetwork = OccupancyForecastingNetwork
-
-    model = ForecastingNetwork(
-        _model_type,
-        _loss_type,
-        _n_input,
-        _n_output,
-        _pc_range,
-        _voxel_size,
-    )
+    model = ForecastingNetwork
     model = model.to(device)
 
     # optimizer
@@ -157,14 +117,13 @@ def train(args):
     # resume
     ckpt_dir = f"{args.model_dir}/ckpts"
     mkdir_if_not_exists(ckpt_dir)
-    start_epoch, n_iter = resume_from_ckpts(ckpt_dir, model, optimizer, scheduler)
 
     # data parallel
     model = nn.DataParallel(model)
 
-    #
     writer = SummaryWriter(f"{args.model_dir}/tf_logs")
-    for epoch in range(start_epoch, args.num_epoch):
+    for epoch in range(0, args.num_epoch):
+        print("Epoch:", epoch)
         for phase in ["train"]:  # , "val"]:
             data_loader = data_loaders[phase]
             if phase == "train":
@@ -176,34 +135,22 @@ def train(args):
             num_batch = len(data_loader)
             num_example = len(data_loader.dataset)
             for i, batch in enumerate(data_loader):
-
+                print("Batch:", i)
                 input_points, input_tindex = batch[1:3]
                 output_origin, output_points, output_tindex = batch[3:6]
-                if args.dataset == "nuscenes":
-                    output_labels = batch[6]
-                else:
-                    output_labels = None
-
-                bs = len(input_points)
-
                 optimizer.zero_grad()
-                with torch.set_grad_enabled(phase == "train"):
-                    loss = _loss_type
-                    ret_dict = model(
-                        input_points,
-                        input_tindex,
-                        output_origin,
-                        output_points,
-                        output_tindex,
-                        output_labels=output_labels,
-                        mode="training",
-                        loss=loss
-                    )
 
+                with torch.set_grad_enabled(phase == "train"):
+                    out = model(input_points, input_tindex)
+                    print("Done predicting")
+                    # TODO: get Chamfer distance from pytorch3d. I couldn't install pytorch3d with pip
+                    loss = None
                     if phase == "train":
                         optimizer.step()
+                    # TODO: average loss across the batches
+                    avg_loss = None
 
-                avg_loss = ret_dict[f"{loss}_loss"].mean()
+                '''    
                 print(
                             f"Phase: {phase}, Iter: {n_iter},",
                             f"Epoch: {epoch}/{args.num_epoch},",
@@ -213,19 +160,7 @@ def train(args):
 
                 if phase == "train":
                     n_iter += 1
-                    for key in ret_dict:
-                        if key.endswith("loss"):
-                            writer.add_scalar(
-                                    f"{phase}/{key}", ret_dict[key].mean().item(), n_iter
-                            )
-                else:
-                    for key in ret_dict:
-                        if key.endswith("loss"):
-                            if key not in total_val_loss:
-                                total_val_loss[key] = 0
-                            total_val_loss[key] += ret_dict[key].mean().item() * len(
-                                input_points
-                            )
+                    writer.add_scalar(f"Train loss:", loss.item(), n_iter)
 
                 if phase == "train" and (i + 1) % (num_batch // 10) == 0:
                     ckpt_path = f"{ckpt_dir}/model_epoch_{epoch}_iter_{n_iter}.pth"
@@ -240,7 +175,7 @@ def train(args):
                             ckpt_path,
                             _use_new_zipfile_serialization=False,
                     )
-
+            
             if phase == "train":
                 ckpt_path = f"{ckpt_dir}/model_epoch_{epoch}.pth"
                 torch.save(
@@ -258,11 +193,10 @@ def train(args):
                 for key in total_val_loss:
                     mean_val_loss = total_val_loss[key] / num_example
                     writer.add_scalar(f"{phase}/{key}", mean_val_loss, n_iter)
-
+            '''
         scheduler.step()
-    #
     writer.close()
-
+    print("Training completed.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -282,12 +216,12 @@ if __name__ == "__main__":
         "--pc-range",
         type=float,
         nargs="+",
-        default=[0.0, 0.0, 0.0, 15.0, 15.0, 15.0],
+        default=[-70.0, -70.0, -4.5, 70.0, 70.0, 4.5]
     )
     data_group.add_argument("--voxel-size", type=float, default=0.2)
-    data_group.add_argument("--n-input", type=int, default=6)
+    data_group.add_argument("--n-input", type=int, default=2)
     data_group.add_argument("--input-step", type=int, default=1)
-    data_group.add_argument("--n-output", type=int, default=6)
+    data_group.add_argument("--n-output", type=int, default=2)
     data_group.add_argument("--output-step", type=int, default=1)
 
     model_group = parser.add_argument_group("model")
@@ -299,7 +233,7 @@ if __name__ == "__main__":
     model_group.add_argument("--lr-start", type=float, default=5e-4)
     model_group.add_argument("--lr-epoch", type=float, default=5)
     model_group.add_argument("--lr-decay", type=float, default=0.1)
-    model_group.add_argument("--num-epoch", type=int, default=15)
+    model_group.add_argument("--num-epoch", type=int, default=1)
     model_group.add_argument("--batch-size", type=int, default=1)
     model_group.add_argument("--num-workers", type=int, default=8)
 

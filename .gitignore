@@ -20,3 +20,9 @@ data3/*
 
 # VSCode stuff
 .vscode/
+
+# Models
+models/*
+
+# Venv
+venv/
