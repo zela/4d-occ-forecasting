@@ -246,5 +246,3 @@ dependencies:
     - threadpoolctl==2.2.0
     - webencodings==0.5.1
     - widgetsnbextension==3.5.1
-prefix: /home/tkhurana/anaconda3/envs/ff-recovery
-
