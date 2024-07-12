@@ -12,7 +12,7 @@ def set_device():
     elif torch.cuda.is_available():
         device_count = torch.cuda.device_count()
         print(f"CUDA devices found. Device count: {device_count}")
-        return torch.device("cuda"), device_count
+        return torch.device("cuda:0"), device_count
     else:
         print("No GPU found. Using CPU.")
         return torch.device("cpu"), 0
