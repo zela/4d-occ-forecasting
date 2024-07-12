@@ -14,3 +14,9 @@ __pycache__/
 .ipynb_checkpoints/
 
 .env
+
+# Data
+data3/*
+
+# VSCode stuff
+.vscode/

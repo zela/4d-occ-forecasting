@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from data.common import CollateFn
-from model import OccupancyForecastingNetwork
+#from model import OccupancyForecastingNetwork
 
 def make_data_loaders(args):
     dataset_kwargs = {
@@ -115,7 +115,7 @@ def train(args):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     #
     device_count = torch.cuda.device_count()
-    if args.batch_size % device_count != 0:
+    if device_count and args.batch_size % device_count != 0:
         raise RuntimeError(
             f"Batch size ({args.batch_size}) cannot be divided by device count ({device_count})"
         )
@@ -275,9 +275,9 @@ if __name__ == "__main__":
         "--kitti-cfg", type=str, default="configs/semantic-kitti.yaml"
     )
     data_group.add_argument(
-        "--nusc-root", type=str, default="/data3/tkhurana/datasets/nuScenes"
+        "--nusc-root", type=str, default="data3/sets/nuscenes"
     )
-    data_group.add_argument("--nusc-version", type=str, default="v1.0-trainval")
+    data_group.add_argument("--nusc-version", type=str, default="v1.0-mini")
     data_group.add_argument(
         "--pc-range",
         type=float,
@@ -300,8 +300,8 @@ if __name__ == "__main__":
     model_group.add_argument("--lr-epoch", type=float, default=5)
     model_group.add_argument("--lr-decay", type=float, default=0.1)
     model_group.add_argument("--num-epoch", type=int, default=15)
-    model_group.add_argument("--batch-size", type=int, default=36)
-    model_group.add_argument("--num-workers", type=int, default=18)
+    model_group.add_argument("--batch-size", type=int, default=1)
+    model_group.add_argument("--num-workers", type=int, default=8)
 
     args = parser.parse_args()
 
